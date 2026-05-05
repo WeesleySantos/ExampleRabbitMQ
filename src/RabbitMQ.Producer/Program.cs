@@ -40,7 +40,7 @@ await channel.QueueBindAsync(
     routingKey: routingKey,
     arguments: null);
 
-Console.WriteLine("Quantos pedidos voc� quer enviar?");
+Console.WriteLine("Quantos pedidos você quer enviar?");
 
 if (!int.TryParse(Console.ReadLine(), out var quantidadePedidos))
 {
