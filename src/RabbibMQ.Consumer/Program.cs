@@ -1,4 +1,4 @@
-﻿using RabbitMQ.Client;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Model;
 using System.Security.AccessControl;
@@ -9,13 +9,21 @@ const string exchangeName = "pedido.exchange";
 const string queueName = "pedido.criados";
 const string routingKey = "pedido.criado";
 
+static string GetEnv(string name, string fallback) =>
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))
+        ? fallback
+        : Environment.GetEnvironmentVariable(name)!;
+
+static int GetEnvInt(string name, int fallback) =>
+    int.TryParse(Environment.GetEnvironmentVariable(name), out var v) ? v : fallback;
+
 var factory = new ConnectionFactory
 {
-    HostName = "localhost",
-    Port = 5672,
-    UserName = "guest",
-    Password = "guest",
-    VirtualHost = "/",
+    HostName = GetEnv("RABBITMQ_HOST", "localhost"),
+    Port = GetEnvInt("RABBITMQ_PORT", 5672),
+    UserName = GetEnv("RABBITMQ_USERNAME", "guest"),
+    Password = GetEnv("RABBITMQ_PASSWORD", "guest"),
+    VirtualHost = GetEnv("RABBITMQ_VHOST", "/"),
     AutomaticRecoveryEnabled = true,
     NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
 };
@@ -62,7 +70,7 @@ consumer.ReceivedAsync += async (model, ea) =>
         Console.WriteLine($"[Consumer] Pedido recebido: {pedido?.Id}");
         Console.WriteLine($"Cliente: {pedido?.ClienteEmail}");
         Console.WriteLine($"Valor: {pedido?.ValorTotal:C}");
-        Console.WriteLine($"Criado: {pedido.DataCriacao:O}");
+        Console.WriteLine($"Criado: {pedido?.DataCriacao:O}");
         Console.WriteLine($"====================================");
 
         await Task.Delay(2000); // Simula o processamento do pedido

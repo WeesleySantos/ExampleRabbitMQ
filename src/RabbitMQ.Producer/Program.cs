@@ -6,13 +6,24 @@ const string exchangeName = "pedido.exchange";
 const string queueName = "pedido.criados";
 const string routingKey = "pedido.criado";
 
+static string GetEnv(string name, string fallback) =>
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name))
+        ? fallback
+        : Environment.GetEnvironmentVariable(name)!;
+
+static int GetEnvInt(string name, int fallback) =>
+    int.TryParse(Environment.GetEnvironmentVariable(name), out var v) ? v : fallback;
+
+static bool GetEnvBool(string name, bool fallback) =>
+    bool.TryParse(Environment.GetEnvironmentVariable(name), out var v) ? v : fallback;
+
 var factory = new ConnectionFactory
 {
-    HostName = "localhost",
-    Port = 5672,
-    UserName = "guest",
-    Password = "guest",
-    VirtualHost = "/",
+    HostName = GetEnv("RABBITMQ_HOST", "localhost"),
+    Port = GetEnvInt("RABBITMQ_PORT", 5672),
+    UserName = GetEnv("RABBITMQ_USERNAME", "guest"),
+    Password = GetEnv("RABBITMQ_PASSWORD", "guest"),
+    VirtualHost = GetEnv("RABBITMQ_VHOST", "/"),
     AutomaticRecoveryEnabled = true,
     NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
 };
@@ -42,12 +53,15 @@ await channel.QueueBindAsync(
 
 Console.WriteLine("Quantos pedidos você quer enviar?");
 
-if (!int.TryParse(Console.ReadLine(), out var quantidadePedidos))
+var quantidadePedidos = GetEnvInt("QUANTIDADE_PEDIDOS", 0);
+if (quantidadePedidos <= 0 && !int.TryParse(Console.ReadLine(), out quantidadePedidos))
 {
     quantidadePedidos = 3;
 }
 
-for (int i = 1; i < quantidadePedidos; i++)
+var autoSend = GetEnvBool("AUTO_SEND", false);
+
+for (int i = 1; i <= quantidadePedidos; i++)
 {
     var pedido = CriarPedidoFake(i);
     var body = JsonSerializer.SerializeToUtf8Bytes(pedido);
@@ -67,8 +81,11 @@ for (int i = 1; i < quantidadePedidos; i++)
 
     Console.WriteLine($"[x] Pedido {pedido.Id} enviado" );
 
-    Console.WriteLine("Pressione ENTER para enviar o pr�ximo pedido...");
-    Console.ReadLine();
+    if (!autoSend && i < quantidadePedidos)
+    {
+        Console.WriteLine("Pressione ENTER para enviar o próximo pedido...");
+        Console.ReadLine();
+    }
 }
 
 static Pedido CriarPedidoFake(int index)
